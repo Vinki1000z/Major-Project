@@ -8,8 +8,9 @@ from torch.utils.data import DataLoader
 from pytorch_lightning.callbacks import ModelCheckpoint
 import pytorch_lightning as pl
 import numpy as np
-
-from data import StockDataset, fetch_stock_data, preprocess_data
+import datetime
+import os
+from data import StockDataset, preprocess_data, fetch_stock_data_polygon
 from model import TemporalFusionTransformer
 
 # Hyperparameters
@@ -29,13 +30,39 @@ def run_prediction(ticker):
     - Fetch and preprocess data
     - Train the TemporalFusionTransformer model
     - Generate predictions for plotting and next day price
-    Returns initial price, predicted price, and (real_prices, predicted_prices) for trend plotting.
+    Returns initial price, predicted price, and (dates, real_prices, predicted_prices) for trend plotting.
     """
     print(f"Starting prediction pipeline for ticker: {ticker}")
-    raw_data = fetch_stock_data(ticker=ticker)
-    if raw_data.empty:
-        print("No data found for ticker:", ticker)
-        return None, None, None
+
+    # Mapping user tickers to Polygon.io tickers with exchange prefix
+    ticker_mapping = {
+        "TATA": "NSE:TATA",
+        "RELIANCE": "NSE:RELIANCE",
+        "INFY": "NSE:INFY",
+        "TCS": "NSE:TCS",
+        "HDFCBANK": "NSE:HDFCBANK",
+        # Add more mappings as needed
+    }
+    polygon_ticker = ticker_mapping.get(ticker, ticker)  # Use mapped ticker or original if not found
+
+    end_date = datetime.datetime.today().strftime('%Y-%m-%d')
+    start_date = (datetime.datetime.today() - datetime.timedelta(days=365)).strftime('%Y-%m-%d')
+    POLYGON_API_KEY = os.getenv("POLYGON_API_KEY")
+
+    print(f"Using Polygon.io ticker: {polygon_ticker}")
+
+    try:
+        raw_data = fetch_stock_data_polygon(ticker=polygon_ticker, start_date=start_date, end_date=end_date, api_key=POLYGON_API_KEY)
+        if raw_data.empty:
+            print("No data found for ticker on Polygon.io:", polygon_ticker)
+            raise Exception("Empty data from Polygon.io")
+    except Exception as e:
+        print(f"Polygon.io fetch failed: {e}. Falling back to yfinance.")
+        from data import fetch_stock_data
+        raw_data = fetch_stock_data(ticker=ticker, period="1y", interval="1d")
+        if raw_data.empty:
+            print("No data found for ticker on yfinance:", ticker)
+            return None, None, None
     data_scaled, scaler = preprocess_data(raw_data)
 
     dataset = StockDataset(data_scaled, seq_length=SEQ_LENGTH)
@@ -65,12 +92,14 @@ def run_prediction(ticker):
         predicted_scaled = model(test_sample).item()
 
     close_mean = scaler.mean_[3]
-    close_std = np.sqrt(scaler.var_[3])
+    close_std = scaler.scale_[3]
     predicted_price = predicted_scaled * close_std + close_mean
     print(f"Predicted next closing price: {predicted_price:.2f}")
 
     real_prices = []
     predicted_prices = []
+    print("First 10 raw_data['Close'] values:")
+    print(raw_data['Close'].head(10).values)
     for i in range(len(data_scaled) - SEQ_LENGTH):
         sample = torch.tensor(data_scaled[i:i+SEQ_LENGTH], dtype=torch.float32).unsqueeze(0)
         with torch.no_grad():
@@ -79,5 +108,8 @@ def run_prediction(ticker):
         predicted_prices.append(price)
         real_price = data_scaled[i + SEQ_LENGTH, 3] * close_std + close_mean
         real_prices.append(real_price)
+    print("First 10 real_prices values:")
+    print(real_prices[:10])
 
-    return initial_price, predicted_price, (real_prices, predicted_prices)
+    dates = raw_data.index[SEQ_LENGTH:]
+    return initial_price, predicted_price, (dates, real_prices, predicted_prices)

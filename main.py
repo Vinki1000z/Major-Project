@@ -81,19 +81,22 @@ if __name__ == "__main__":
         import threading
 
         def update_ui(initial_price, predicted_price, trends, ticker):
-            real_prices, predicted_prices = trends
+            dates, real_prices, predicted_prices = trends
             output_text = (f"Ticker: {ticker}\n"
                            f"Initial Price: {initial_price:.2f}\n"
-                           f"Predicted Next Close Price: {predicted_price:.2f}")
-            output_label.config(text=output_text)
-            plot_trend(real_prices, predicted_prices, ticker, plot_frame)
+                           f"Predicted Next Close Price: {predicted_price:.2f}\n\n")
+            # Append output text instead of replacing
+            current_text = output_label.cget("text")
+            output_label.config(text=current_text + output_text)
+            plot_trend(dates, real_prices, predicted_prices, ticker, plot_frame)
             
             # Additional feature: Show percentage change prediction
             try:
                 percent_change = ((predicted_price - initial_price) / initial_price) * 100
-                additional_info_label.config(text=f"Predicted Change: {percent_change:.2f}%")
+                current_additional = additional_info_label.cget("text")
+                additional_info_label.config(text=current_additional + f"{ticker}: {percent_change:.2f}%\n")
             except Exception:
-                additional_info_label.config(text="")
+                pass
             
             # New feature: Show simple moving average (SMA) of closing prices
             try:
@@ -101,16 +104,19 @@ if __name__ == "__main__":
                 window_size = 10
                 if len(close_prices) >= window_size:
                     sma = np.convolve(close_prices, np.ones(window_size)/window_size, mode='valid')[-1]
-                    feature_info_label.config(text=f"10-day SMA: {sma:.2f}")
+                    current_feature = feature_info_label.cget("text")
+                    feature_info_label.config(text=current_feature + f"{ticker}: 10-day SMA: {sma:.2f}\n")
                 else:
-                    feature_info_label.config(text="Not enough data for SMA")
+                    current_feature = feature_info_label.cget("text")
+                    feature_info_label.config(text=current_feature + f"{ticker}: Not enough data for SMA\n")
             except Exception:
-                feature_info_label.config(text="")
+                pass
             
             # New feature: Show volatility (standard deviation) of closing prices
             try:
                 volatility = np.std(real_prices)
-                feature_info_label.config(text=feature_info_label.cget("text") + f" | Volatility: {volatility:.2f}")
+                current_feature = feature_info_label.cget("text")
+                feature_info_label.config(text=current_feature + f"{ticker}: Volatility: {volatility:.2f}\n")
             except Exception:
                 pass
             
@@ -119,23 +125,24 @@ if __name__ == "__main__":
                 news_items = fetch_news(ticker)
                 news_text.config(state=tk.NORMAL)
                 if news_items:
-                    news_text.delete(1.0, tk.END)
+                    # Append news instead of replacing
                     for item in news_items[:5]:  # Show top 5 news items
+                        news_text.insert(tk.END, f"Ticker: {ticker}\n")
                         news_text.insert(tk.END, f"• {item.get('title', 'No Title')}\n")
                         news_text.insert(tk.END, f"  {item.get('publisher', '')} - {item.get('publishedAt', '')}\n")
                         news_text.insert(tk.END, f"  {item.get('link', '')}\n\n")
                 else:
-                    news_text.insert(tk.END, "No news found for this ticker.")
+                    news_text.insert(tk.END, f"No news found for ticker: {ticker}\n")
                 news_text.config(state=tk.DISABLED)
             except Exception as e:
                 news_text.config(state=tk.NORMAL)
-                news_text.insert(tk.END, f"Error fetching news: {e}")
+                news_text.insert(tk.END, f"Error fetching news for ticker {ticker}: {e}\n")
                 news_text.config(state=tk.DISABLED)
 
         def task():
-            ticker = ticker_entry.get().strip().upper()
-            if not ticker:
-                output_label.config(text="Please enter a valid ticker symbol.")
+            ticker_input = ticker_entry.get().strip().upper()
+            if not ticker_input:
+                output_label.config(text="Please enter at least one valid ticker symbol.")
                 additional_info_label.config(text="")
                 feature_info_label.config(text="")
                 news_text.config(state=tk.NORMAL)
@@ -143,31 +150,36 @@ if __name__ == "__main__":
                 news_text.config(state=tk.DISABLED)
                 progress.stop()
                 return
-            output_label.config(text=f"Processing {ticker}...")
+
+            tickers = [t.strip() for t in ticker_input.split(",") if t.strip()]
+            if not tickers:
+                output_label.config(text="Please enter at least one valid ticker symbol.")
+                additional_info_label.config(text="")
+                feature_info_label.config(text="")
+                news_text.config(state=tk.NORMAL)
+                news_text.delete(1.0, tk.END)
+                news_text.config(state=tk.DISABLED)
+                progress.stop()
+                return
+
+            output_label.config(text="")
             additional_info_label.config(text="")
             feature_info_label.config(text="")
             news_text.config(state=tk.NORMAL)
             news_text.delete(1.0, tk.END)
             news_text.config(state=tk.DISABLED)
             root.update()
-            
-            # Real-time update: run prediction every 10 seconds
+
             import time
             for _ in range(6):  # Run 6 times (1 minute) for demo; adjust as needed
-                initial_price, predicted_price, trends = run_prediction(ticker)
-                if initial_price is None:
-                    output_label.config(text="Error fetching or processing data for ticker: " + ticker)
-                    additional_info_label.config(text="")
-                    feature_info_label.config(text="")
-                    news_text.config(state=tk.NORMAL)
-                    news_text.delete(1.0, tk.END)
-                    news_text.config(state=tk.DISABLED)
-                    progress.stop()
-                    return
-                
-                root.after(0, update_ui, initial_price, predicted_price, trends, ticker)
-                time.sleep(10)  # Wait 10 seconds before next update
-            
+                for ticker in tickers:
+                    output_label.config(text=output_label.cget("text") + f"Processing {ticker}...\n")
+                    initial_price, predicted_price, trends = run_prediction(ticker)
+                    if initial_price is None:
+                        output_label.config(text=output_label.cget("text") + f"Error fetching or processing data for ticker: {ticker}\n")
+                        continue
+                    root.after(0, update_ui, initial_price, predicted_price, trends, ticker)
+                    time.sleep(10)  # Wait 10 seconds before next update
             progress.stop()
 
         progress.start()

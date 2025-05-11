@@ -1,33 +1,33 @@
 """
 News fetching module.
-Contains function to fetch related news articles for a stock ticker using a free public API.
+Contains function to fetch related news articles for a stock ticker using Marketaux API with an API key.
 """
 
 import requests
 
-def fetch_news(ticker):
+def fetch_news(symbols):
     """
-    Fetch latest news articles related to the stock ticker using NewsAPI.org free demo endpoint.
-    Returns a list of news items with title, publisher, link, and published date.
+    Fetch latest news articles related to the given stock symbols using Marketaux API.
+    symbols: list of stock ticker strings, e.g. ['TSLA', 'AMZN', 'MSFT']
+    Returns a list of news items with title and description.
     """
+    api_key = "r4QaPN6fLeQR6emY4fM13UircsBnTnB10Ko31GEC"
+    symbols_str = ",".join(symbols)
+    url = f"https://api.marketaux.com/v1/news/all?symbols={symbols_str}&filter_entities=true&language=en&api_token={api_key}&limit=10"
     try:
-        url = f"https://newsapi.org/v2/everything?q={ticker}&sortBy=publishedAt&language=en&pageSize=5&apiKey=demo"
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            articles = data.get('articles', [])
             news_items = []
-            for article in articles:
+            for article in data.get('data', []):
                 news_items.append({
                     'title': article.get('title', 'No Title'),
-                    'publisher': article.get('source', {}).get('name', ''),
-                    'link': article.get('url', ''),
-                    'publishedAt': article.get('publishedAt', '')
+                    'description': article.get('description', '')
                 })
             return news_items
         else:
-            print(f"News API request failed with status code {response.status_code}")
+            print(f"Marketaux API request failed with status code {response.status_code}")
             return []
     except Exception as e:
-        print(f"Error fetching news: {e}")
+        print(f"Error fetching Marketaux news: {e}")
         return []
