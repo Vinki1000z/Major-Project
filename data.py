@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 import torch
 from torch.utils.data import Dataset
 
+# Function to fetch stock data using yfinance library
 def fetch_stock_data(ticker="AAPL", period="1y", interval="1d"):
     """
     Fetch historical stock data for the given ticker using yfinance.
@@ -18,11 +19,13 @@ def fetch_stock_data(ticker="AAPL", period="1y", interval="1d"):
     print(f"Fetching data for ticker: {ticker}")
     stock = yf.Ticker(ticker)
     data = stock.history(period=period, interval=interval)
+    # Select relevant columns
     data = data[['Open', 'High', 'Low', 'Close', 'Volume']]
-    data.dropna(inplace=True)
+    data.dropna(inplace=True)  # Remove rows with missing data
     print(f"Data fetched: {len(data)} rows.")
     return data
 
+# Function to fetch stock data from polygon.io API
 def fetch_stock_data_polygon(ticker="AAPL", start_date=None, end_date=None, api_key=None):
     """
     Fetch historical stock data for the given ticker using polygon.io API.
@@ -45,10 +48,10 @@ def fetch_stock_data_polygon(ticker="AAPL", start_date=None, end_date=None, api_
 
     url = f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start_date}/{end_date}"
     params = {
-        "adjusted": "true",
-        "sort": "asc",
-        "limit": 50000,
-        "apiKey": api_key
+        "adjusted": "true",  # Adjusted prices for splits/dividends
+        "sort": "asc",      # Sort data ascending by date
+        "limit": 50000,     # Max number of records
+        "apiKey": api_key   # API key for authentication
     }
     response = requests.get(url, params=params)
     if response.status_code != 200:
@@ -77,6 +80,7 @@ def fetch_stock_data_polygon(ticker="AAPL", start_date=None, end_date=None, api_
     print(f"Data fetched: {len(df)} rows.")
     return df
 
+# Function to preprocess data by standardizing features
 def preprocess_data(data):
     """
     Standardize each feature in the data using StandardScaler.
@@ -88,6 +92,7 @@ def preprocess_data(data):
     print("Data preprocessing complete.")
     return data_scaled, scaler
 
+# Custom PyTorch Dataset class for stock data sequences
 class StockDataset(Dataset):
     """
     Custom PyTorch Dataset for stock data sequences.
@@ -98,9 +103,12 @@ class StockDataset(Dataset):
         self.seq_length = seq_length
 
     def __len__(self):
+        # Return number of samples available
         return max(0, len(self.data) - self.seq_length)
 
     def __getitem__(self, index):
+        # Get sequence of features for input
         x = self.data[index:index + self.seq_length]
+        # Get next day's closing price as target
         y = self.data[index + self.seq_length, 3]  # Closing price index
         return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)

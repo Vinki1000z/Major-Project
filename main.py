@@ -1,3 +1,5 @@
+# Main script to launch the Tkinter GUI for stock market prediction
+
 from data import fetch_stock_data, preprocess_data, StockDataset
 from model import TemporalFusionTransformer
 from predict import run_prediction
@@ -10,9 +12,9 @@ from multiprocessing import freeze_support
 import numpy as np
 
 if __name__ == "__main__":
-    freeze_support()
+    freeze_support()  # Support for multiprocessing on Windows
     import pytorch_lightning as pl
-    pl.seed_everything(42)
+    pl.seed_everything(42)  # Set random seed for reproducibility
     
     print("Launching Tkinter GUI...")
     # Create main Tkinter window
@@ -20,7 +22,7 @@ if __name__ == "__main__":
     root.title("Stock Market Prediction System")
     root.geometry("900x700")
 
-    # Create a canvas and a vertical scrollbar for scrolling
+    # Create a canvas and a vertical scrollbar for scrolling the main content
     main_canvas = tk.Canvas(root, borderwidth=0, background="#f0f0f0")
     vscrollbar = ttk.Scrollbar(root, orient="vertical", command=main_canvas.yview)
     main_canvas.configure(yscrollcommand=vscrollbar.set)
@@ -28,6 +30,7 @@ if __name__ == "__main__":
     vscrollbar.grid(row=1, column=1, sticky='ns')
     main_canvas.grid(row=1, column=0, sticky='nsew')
 
+    # Configure grid weights for resizing
     root.grid_rowconfigure(1, weight=1)
     root.grid_columnconfigure(0, weight=1)
 
@@ -35,25 +38,27 @@ if __name__ == "__main__":
     main_frame = ttk.Frame(main_canvas, padding="10")
     main_canvas.create_window((0, 0), window=main_frame, anchor="nw")
 
+    # Update scrollregion when the frame size changes
     def on_frame_configure(event):
         main_canvas.configure(scrollregion=main_canvas.bbox("all"))
 
     main_frame.bind("<Configure>", on_frame_configure)
 
-    # Input Frame inside main_frame
+    # Input Frame inside main_frame for user inputs
     input_frame = ttk.Frame(main_frame, padding="10")
     input_frame.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
+    # Label and entry for stock ticker input
     ttk.Label(input_frame, text="Enter Stock Ticker:", font=("Arial", 12)).grid(row=0, column=0, padx=5, pady=5)
     ticker_entry = ttk.Entry(input_frame, width=15, font=("Arial", 12))
     ticker_entry.grid(row=0, column=1, padx=5, pady=5)
     ticker_entry.insert(0, "AAPL")  # Default ticker
 
-    # Predict Button
+    # Predict Button to trigger prediction
     predict_button = ttk.Button(input_frame, text="Predict", width=10)
     predict_button.grid(row=0, column=2, padx=5, pady=5)
 
-    # Clear Button
+    # Clear Button to reset inputs and outputs
     def clear_all():
         ticker_entry.delete(0, tk.END)
         output_label.config(text="")
@@ -67,32 +72,32 @@ if __name__ == "__main__":
     clear_button = ttk.Button(input_frame, text="Clear", width=10, command=clear_all)
     clear_button.grid(row=0, column=3, padx=5, pady=5)
 
-    # Output Label
+    # Label to display prediction output
     output_label = ttk.Label(main_frame, text="", font=("Arial", 14))
     output_label.grid(row=1, column=0, padx=10, pady=10, sticky='w')
 
-    # Frame for plot
+    # Frame to hold the plot
     plot_frame = ttk.Frame(main_frame)
     plot_frame.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
     main_frame.grid_rowconfigure(2, weight=1)
     main_frame.grid_columnconfigure(0, weight=1)
 
-    # Additional Info Label
+    # Label to display additional info like percentage change
     additional_info_label = ttk.Label(main_frame, text="", font=("Arial", 12), foreground="green")
     additional_info_label.grid(row=4, column=0, padx=10, pady=5, sticky='w')
 
-    # Feature Info Label
+    # Label to display feature info like SMA and volatility
     feature_info_label = ttk.Label(main_frame, text="", font=("Arial", 12), foreground="blue")
     feature_info_label.grid(row=5, column=0, padx=10, pady=5, sticky='w')
 
-    # News Frame and Text widget
+    # News Frame and Text widget to show related news articles
     news_frame = ttk.LabelFrame(main_frame, text="Related News", padding="10")
     news_frame.grid(row=6, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
     main_frame.grid_rowconfigure(6, weight=1)
     news_text = tk.Text(news_frame, height=10, wrap=tk.WORD, state=tk.DISABLED)
     news_text.pack(fill=tk.BOTH, expand=True)
 
-    # Progress bar
+    # Progress bar to indicate ongoing processing
     progress = ttk.Progressbar(main_frame, mode='indeterminate')
     progress.grid(row=3, column=0, sticky=(tk.W, tk.E), padx=10, pady=10)
 
@@ -100,6 +105,7 @@ if __name__ == "__main__":
     def predict_and_show():
         import threading
 
+        # Update UI with prediction results and plots
         def update_ui(initial_price, predicted_price, trends, ticker):
             dates, real_prices, predicted_prices = trends
             output_text = (f"Ticker: {ticker}\n"
@@ -159,6 +165,7 @@ if __name__ == "__main__":
                 news_text.insert(tk.END, f"Error fetching news for ticker {ticker}: {e}\n")
                 news_text.config(state=tk.DISABLED)
 
+        # Background task to run prediction and update UI
         def task():
             ticker_input = ticker_entry.get().strip().upper()
             if not ticker_input:
@@ -182,6 +189,7 @@ if __name__ == "__main__":
                 progress.stop()
                 return
 
+            # Clear previous outputs
             output_label.config(text="")
             additional_info_label.config(text="")
             feature_info_label.config(text="")
@@ -191,6 +199,7 @@ if __name__ == "__main__":
             root.update()
 
             import time
+            # Run prediction multiple times for demo purposes
             for _ in range(6):  # Run 6 times (1 minute) for demo; adjust as needed
                 for ticker in tickers:
                     output_label.config(text=output_label.cget("text") + f"Processing {ticker}...\n")
@@ -205,6 +214,7 @@ if __name__ == "__main__":
         progress.start()
         threading.Thread(target=task).start()
 
+    # Bind the predict button to the predict_and_show function
     predict_button.config(command=predict_and_show)
 
     print("GUI is running. Please interact with the window.")

@@ -1,0 +1,38 @@
+Comment Addition Plan for All Python Files
+
+Information Gathered:
+- data.py: Contains data fetching, preprocessing functions, and a PyTorch Dataset class. Has good docstrings but can use some inline comments for clarity.
+- main.py: Tkinter GUI application for stock prediction. Has some inline comments but could benefit from more comments explaining UI structure and key functions.
+- model.py: Defines TemporalFusionTransformer model using PyTorch Lightning. Has class and file docstrings, some inline comments in training_step.
+- news.py: Fetches news articles using Marketaux API. Has file and function docstrings, could use inline comments for API call and error handling.
+- predict.py: Contains run_prediction function for full prediction pipeline. Has detailed docstrings, could use inline comments for key steps.
+- polygon_test.py: Simple test script for polygon.io data fetch. No comments currently.
+- plot.py: Plotting module for actual vs predicted prices in Tkinter canvas. Has docstrings but no inline comments.
+
+Plan:
+- Add a brief file-level comment if missing or enhance existing.
+- Add or enhance function docstrings if needed.
+- Add inline comments explaining key steps, especially in:
+  - data.py: data fetching, preprocessing, dataset indexing
+  - main.py: UI layout, event handlers, threading
+  - model.py: training_step, validation_step, optimizer config
+  - news.py: API request, response parsing, error handling
+  - predict.py: data fetching fallback, training loop, prediction calculation
+  - polygon_test.py: test function steps
+  - plot.py: plotting steps and Tkinter embedding
+
+Dependent Files to be Edited:
+- data.py
+- main.py
+- model.py
+- news.py
+- predict.py
+- polygon_test.py
+- plot.py
+
+Follow-up Steps:
+- Verify comments do not alter code functionality.
+- Run the application to ensure no runtime errors.
+- Review comments for clarity and helpfulness.
+
+Please confirm if you approve this plan to proceed with adding comments.
